@@ -1,2 +1,2 @@
 # getData
-Get point data from BigQuery
+Get point data from BigQuery and clean it

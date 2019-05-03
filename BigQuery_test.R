@@ -54,13 +54,13 @@ con2 = DBI::dbConnect(bigrquery::bigquery(),
 #DBI::dbListTables(con) #Check the tables to use
 
 #Get list of species 
-CarstenBigqueryLookup<-read.csv("/gpfs/ysm/project/ys628/SDMs/bigquery/africa_synonyms_test2.csv")
+CarstenBigqueryLookup<-read.csv("/gpfs/ysm/project/ys628/SDMs/getDataBQ/africa_synonyms_test2.csv")
 
 #make CarstenBigqueryLookup$bigquery_candidate into species list to query
 syn = CarstenBigqueryLookup$bigquery_candidate
 
-#### Query MOL point data records with the list of species
-#######ebird
+########## Query MOL point data records with the list of species
+###ebird
 ebird_query_result = bigrquery::bq_project_query(
   x = con@project,
   query = paste(
@@ -90,14 +90,37 @@ bigrquery::bq_table_save(gbif_query_result,destination_uris = "gs://mol-playgrou
 #Move results to HPC
 gcs_get_object("yani/gbif_bigquery_201808_test2.csv", saveToDisk = "/gpfs/ysm/project/ys628/SDMs/bigquery/gbif_bigquery_201808_test2.csv")
 
+########## Read query data and clean it
 #read data
-ebird_bigquery -> read.csv("/gpfs/ysm/project/ys628/SDMs/bigquery/africa_synonyms_test2.csv")
-#mydata <- jsonlite::stream_in(file('/gpfs/loomis/project/fas/jetz/data/erica/BigQuery/erica_carsten_gbif_table_save.csv')) I DONT THINK I NEED THIS
+ebird_bigquery <- jsonlite::stream_in(file('/gpfs/ysm/project/ys628/SDMs/getDataBQ/ebird_bigquery_201808_test2.csv')) 
 #ebird_query_df=as.data.frame(ebird_bigquery)#generate a dataframe with the results of the query
-ebird_query_df_join=dplyr::left_join(ebird_bigquery,CarstenBigqueryLookup,by=c("scientific_name"="Synonym")) 
+ebird_query_df_join=dplyr::left_join(ebird_bigquery,CarstenBigqueryLookup,by=c("scientific_name"="bigquery_candidate")) 
 
+gbif_bigquery <- jsonlite::stream_in(file('/gpfs/ysm/project/ys628/SDMs/getDataBQ/gbif_bigquery_201808_test2.csv')) 
+#ebird_query_df=as.data.frame(ebird_bigquery)#generate a dataframe with the results of the query
+gbif_query_df_join=dplyr::left_join(gbif_bigquery,CarstenBigqueryLookup,by=c("species"="bigquery_candidate")) 
 
-gbif_bigquery -> read.csv("/gpfs/ysm/project/ys628/SDMs/bigquery/africa_synonyms_test2.csv")
-gbif_query_df_join=dplyr::left_join(gbif_bigquery,CarstenBigqueryLookup,by=c("species"="Synonym")) 
+#retain data from 1970 
+ebird=ebird_query_df_join[,c("species_MOL","latitude","longitude","observation_date")]
+gbif=gbif_query_df_join[,c("species_MOL","latitude","longitude","eventDate")];names(gbif)=c("species_MOL","latitude","longitude","observation_date")
+point_obs<-rbind(ebird,gbif)
+point_obs<-point_obs[complete.cases(point_obs[,1:4]),]
+point_obs$observation_date<-as.Date(point_obs$observation_date, format="%Y-%m-%d")
+point_obs<-point_obs[point_obs$observation_date>"1970-01-01",]#retain data from 1970 only
 
+#get point data for each species separately
+species_MOL=unique(point_obs$species_MOL)
+species_MOL_=gsub(" ","_",species_MOL)
+save_dir<-"/gpfs/ysm/project/ys628/SDMs/getDataBQ/data_species/"
 
+for (i in 1:length(species_MOL)){
+  
+  print(i)
+  print(species_MOL[i])
+  species_csv <-point_obs[point_obs$species_MOL==species_MOL[i],] #subset to single species
+  species_csv<-unique(species_csv)#remove duplicate records
+  species_csv<-species_csv[,2:3]##keep lat long only
+  names(species_csv)<-c("lat","lon")
+  save_filename=paste0(save_dir,species_MOL_[i],".csv")
+  readr::write_csv(species_csv, path = save_filename)
+}
