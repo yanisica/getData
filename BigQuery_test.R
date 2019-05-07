@@ -54,7 +54,7 @@ con2 = DBI::dbConnect(bigrquery::bigquery(),
 #DBI::dbListTables(con) #Check the tables to use
 
 #Get list of species 
-CarstenBigqueryLookup<-read.csv("/gpfs/ysm/project/ys628/SDMs/getDataBQ/africa_synonyms_test2.csv")
+CarstenBigqueryLookup<-read.csv("/gpfs/ysm/project/ys628/SDMs/getDataBQ/africa_synonyms.csv")
 
 #make CarstenBigqueryLookup$bigquery_candidate into species list to query
 syn = CarstenBigqueryLookup$bigquery_candidate
@@ -71,9 +71,9 @@ ebird_query_result = bigrquery::bq_project_query(
 )
 
 #Place results in bucket
-bigrquery::bq_table_save(ebird_query_result,destination_uris = "gs://mol-playground/yani/ebird_bigquery_201808_test2.csv")
+bigrquery::bq_table_save(ebird_query_result,destination_uris = "gs://mol-playground/yani/ebird_bigquery_201808.csv")
 #Move results to HPC
-gcs_get_object("yani/ebird_bigquery_201808_test2.csv", saveToDisk = "/gpfs/ysm/project/ys628/SDMs/bigquery/ebird_bigquery_201808_test2.csv")
+gcs_get_object("yani/ebird_bigquery_201808.csv", saveToDisk = "/gpfs/ysm/project/ys628/SDMs/getDataBQ/ebird_bigquery_201808.csv")
 
 #######gbif
 gbif_query_result = bigrquery::bq_project_query(
@@ -86,17 +86,17 @@ gbif_query_result = bigrquery::bq_project_query(
 )
 
 #Place results in bucket
-bigrquery::bq_table_save(gbif_query_result,destination_uris = "gs://mol-playground/yan/gbif_bigquery_201808_test2.csv")
+bigrquery::bq_table_save(gbif_query_result,destination_uris = "gs://mol-playground/yani/gbif_bigquery_201808.csv")
 #Move results to HPC
-gcs_get_object("yani/gbif_bigquery_201808_test2.csv", saveToDisk = "/gpfs/ysm/project/ys628/SDMs/bigquery/gbif_bigquery_201808_test2.csv")
+gcs_get_object("yani/gbif_bigquery_201808.csv", saveToDisk = "/gpfs/ysm/project/ys628/SDMs/getDataBQ/gbif_bigquery_201808.csv")
 
 ########## Read query data and clean it
 #read data
-ebird_bigquery <- jsonlite::stream_in(file('/gpfs/ysm/project/ys628/SDMs/getDataBQ/ebird_bigquery_201808_test2.csv')) 
+ebird_bigquery <- jsonlite::stream_in(file('/gpfs/ysm/project/ys628/SDMs/getDataBQ/ebird_bigquery_201808.csv')) 
 #ebird_query_df=as.data.frame(ebird_bigquery)#generate a dataframe with the results of the query
 ebird_query_df_join=dplyr::left_join(ebird_bigquery,CarstenBigqueryLookup,by=c("scientific_name"="bigquery_candidate")) 
 
-gbif_bigquery <- jsonlite::stream_in(file('/gpfs/ysm/project/ys628/SDMs/getDataBQ/gbif_bigquery_201808_test2.csv')) 
+gbif_bigquery <- jsonlite::stream_in(file('/gpfs/ysm/project/ys628/SDMs/getDataBQ/gbif_bigquery_201808.csv')) 
 #ebird_query_df=as.data.frame(ebird_bigquery)#generate a dataframe with the results of the query
 gbif_query_df_join=dplyr::left_join(gbif_bigquery,CarstenBigqueryLookup,by=c("species"="bigquery_candidate")) 
 
