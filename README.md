@@ -1,2 +1,3 @@
 # getData
-Get point data from BigQuery and clean it
+Get point data and rangemaps for SDMs
+
